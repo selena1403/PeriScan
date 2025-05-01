@@ -75,7 +75,7 @@ if uploaded_file:
             base_value = shap_values.base_values[0]
             feature_names = input_encoded.columns.tolist()
 
-            image_paths = []
+            image_buffers = []
             for group_name, group_features in feature_groups.items():
                 group_indices = [i for i, name in enumerate(feature_names) if name in group_features]
                 if not group_indices:
@@ -95,11 +95,9 @@ if uploaded_file:
                 plt.savefig(buf, format='png', dpi=300, bbox_inches='tight')
                 buf.seek(0)
                 plt.close()
-                img_path = f"shap_{group_name.replace(' ', '_')}_patient_{selected_id}.png"
-                with open(img_path, "wb") as f:
-                    f.write(buf.read())
-                image_paths.append((group_name, img_path))
-                st.image(img_path, caption=f"SHAP Force Plot - {group_name}")
+                image_data = buf.getvalue()
+                image_buffers.append((group_name, image_data))
+                st.image(image_data, caption=f"SHAP Force Plot - {group_name}")
 
             # --- Generate Final Summary Report PNG ---
             font_title = ImageFont.truetype("arial.ttf", 48) if os.name == "nt" else ImageFont.load_default()
@@ -108,7 +106,7 @@ if uploaded_file:
             report_width = 1400
             line_height = 70
             padding = 50
-            report_height = padding + (line_height * 4) + len(image_paths) * 300 + 300
+            report_height = padding + (line_height * 4) + len(image_buffers) * 300 + 300
             report_img = Image.new("RGB", (report_width, report_height), "white")
             draw = ImageDraw.Draw(report_img)
 
@@ -118,28 +116,28 @@ if uploaded_file:
             draw.text((padding, padding + line_height*3), f"Probability: {pred_prob:.4f}", fill="black", font=font_body)
 
             y_offset = padding + line_height * 4
-            for group_name, path in image_paths:
-                shap_img = Image.open(path).resize((1200, 200))
+            for group_name, img_data in image_buffers:
+                shap_img = Image.open(io.BytesIO(img_data)).resize((1200, 200))
                 report_img.paste(shap_img, (padding, y_offset))
                 y_offset += shap_img.size[1] + 40
 
-            summary_path = f"Periodontitis_Report_{selected_id}.png"
-            report_img.save(summary_path)
+            img_io = io.BytesIO()
+            report_img.save(img_io, format='PNG')
+            img_io.seek(0)
 
             # QR Code
-            report_url = f"https://your_hosting_url/{summary_path}"  # Update to real host
-            qr = qrcode.make(report_url)
+            qr = qrcode.make("https://your_hosting_url/your_report_placeholder")
             qr_buf = io.BytesIO()
             qr.save(qr_buf, format='PNG')
             qr_buf.seek(0)
 
             st.subheader("📝 Full Summary Report")
-            st.image(summary_path, caption="Complete Prediction Report")
-            st.download_button("⬇️ Download Full Report as PNG", data=open(summary_path, "rb"), file_name=summary_path, mime="image/png")
-
+            st.image(img_io, caption="Complete Prediction Report")
+            st.download_button("⬇️ Download Full Report as PNG", data=img_io, file_name=f"Periodontitis_Report_{selected_id}.png", mime="image/png")
             st.image(qr_buf, caption="📲 Scan QR to Access Report")
         else:
             st.warning("Selected patient not found.")
+
 
 
 

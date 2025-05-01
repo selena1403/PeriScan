@@ -19,7 +19,8 @@ st.markdown("<h2 style='text-align: center;'>Periodontitis Risk Prediction and D
 uploaded_file = st.file_uploader("Upload Excel file with patient data", type=["xlsx"])
 
 # Load trained model
-model = tf.keras.models.load_model("D:/WORK/2. On going/7. New Lap/Research/KSHAP/STUDY_3_DL_routine blood test/XAI_binary_model_ori.h5")
+#model = tf.keras.models.load_model("D:/WORK/2. On going/7. New Lap/Research/KSHAP/STUDY_3_DL_routine blood test/XAI_binary_model_ori.h5") # for testing only
+model = tf.keras.models.load_model("XAI_binary_model_ori.h5")
 
 # Define raw and grouped features
 Demographic_Clinical_Information = ['sex', 'age', 'bmi', 'pulse', 'sbpL', 'dbpL']

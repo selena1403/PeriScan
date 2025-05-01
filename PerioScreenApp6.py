@@ -113,27 +113,35 @@ if uploaded_file:
                 st.image(image_data, caption=f"SHAP Force Plot - {group_name}")
 
             # --- Generate Final Summary Report PNG ---
-            font_title = ImageFont.truetype("arial.ttf", 48) if os.name == "nt" else ImageFont.load_default()
-            font_body = ImageFont.truetype("arial.ttf", 28) if os.name == "nt" else ImageFont.load_default()
-
+            font_title_size = 72
+            font_body_size = 40
+            
+            try:
+                font_title = ImageFont.truetype("arial.ttf", font_title_size)
+                font_body = ImageFont.truetype("arial.ttf", font_body_size)
+            except:
+                font_title = ImageFont.load_default()
+                font_body = ImageFont.load_default()
+            
             report_width = 1400
-            line_height = 70
+            line_height = 90  # Increased to match larger font size
             padding = 50
             report_height = padding + (line_height * 4) + len(image_buffers) * 300 + 300
+            
             report_img = Image.new("RGB", (report_width, report_height), "white")
             draw = ImageDraw.Draw(report_img)
-
-            draw.text((padding, padding), f"Periodontitis Prediction Report", fill="black", font=font_title)
+            
+            draw.text((padding, padding), "Periodontitis Prediction Report", fill="black", font=font_title)
             draw.text((padding, padding + line_height), f"Patient ID: {selected_id}", fill="black", font=font_body)
             draw.text((padding, padding + line_height*2), f"Prediction: {pred_label}", fill=color, font=font_body)
             draw.text((padding, padding + line_height*3), f"Probability: {pred_prob:.4f}", fill="black", font=font_body)
-
+            
             y_offset = padding + line_height * 4
             for group_name, img_data in image_buffers:
                 shap_img = Image.open(io.BytesIO(img_data)).resize((1200, 200))
                 report_img.paste(shap_img, (padding, y_offset))
                 y_offset += shap_img.size[1] + 40
-
+            
             img_io = io.BytesIO()
             report_img.save(img_io, format='PNG')
             img_io.seek(0)

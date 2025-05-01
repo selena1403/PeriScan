@@ -129,7 +129,7 @@ if uploaded_file:
             st.subheader("📲 Access Report via QR Code")
             
             # Update this to your actual report URL or server path
-            report_url = f"https://yourappdomain.com/report/{selected_id}"  # <-- Replace this!
+            report_url = f"https://periscan-zkmmz4bp2srn793a8bpx4g.streamlit.app/{selected_id}"  # <-- Replace this!
 
             qr = qrcode.make(report_url)
             qr_buf = io.BytesIO()

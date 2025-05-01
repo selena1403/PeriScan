@@ -58,11 +58,24 @@ if uploaded_file:
             # Prediction
             pred_prob = model.predict(input_scaled)[0][0]
             pred_label = "Periodontitis" if pred_prob >= 0.5 else "Non-Periodontitis"
-            color = "red" if pred_prob >= 0.5 else "green"
 
-            # Display prediction
-            st.markdown(f"## 🧪 Prediction: <span style='color: {color};'>{pred_label}</span>", unsafe_allow_html=True)
-            st.markdown(f"**Predicted Probability:** <span style='font-size:18px; color:{color};'>{pred_prob:.4f}</span>", unsafe_allow_html=True)
+            # Display result with icon
+            if pred_label == "Non-Periodontitis":
+                st.success("🟢 Prediction: **Non-Periodontitis**")
+                st.markdown("<div style='font-size: 18px; color: #CD853F; background-color: #FFFFE0; padding: 10px;'>✅ This patient shows no signs of periodontitis risk based on current biomarkers. Continue with regular dental care.</div>", unsafe_allow_html=True)
+            else:
+                st.error("🔴 Prediction: **Periodontitis**")
+                st.markdown("<div style='font-size: 18px; color: #CD853F; background-color: #FFFFE0; padding: 10px;'>⚠️ This patient may be at risk of periodontitis. Professional dental consultation is recommended for further evaluation.</div>", unsafe_allow_html=True)
+
+            # Conditional styling based on periodontitis risk
+            if pred_prob >= 0.5:
+                color = "red"
+            else:
+                color = "green"
+            
+            # Display the predicted probability with conditional styling
+            st.markdown(f"Predicted Probability: <span style='font-size: 18px; color: {color}; padding: 10px;'>{pred_prob:.4f}</span>", unsafe_allow_html=True)
+
 
             # SHAP values
             shap.initjs()

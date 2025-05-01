@@ -124,6 +124,35 @@ if uploaded_file:
                     file_name=f"shap_{group_name.replace(' ', '_')}_patient_{selected_id}.png",
                     mime="image/png"
                 )
+            # --- Create Final Report Image ---
+            from PIL import ImageDraw, ImageFont
+            
+            st.subheader("📝 Final Summary Report as Image")
+            
+            # Create a simple white background image
+            report_img = Image.new('RGB', (1000, 400), color='white')
+            draw = ImageDraw.Draw(report_img)
+            
+            # Load default font
+            font = ImageFont.load_default()
+            
+            # Add summary text
+            summary_text = f"Periodontitis Prediction Report\n\nPatient ID: {selected_id}\nPrediction: {pred_label}\nProbability: {pred_prob:.4f}"
+            draw.text((50, 50), summary_text, fill="black", font=font)
+            
+            # Save report to buffer
+            report_buf = io.BytesIO()
+            report_img.save(report_buf, format='PNG')
+            report_buf.seek(0)
+            
+            # Display and offer download of the final report
+            st.image(report_buf, caption="Final Report")
+            st.download_button(
+                label="⬇️ Download Final Report (PNG)",
+                data=report_buf,
+                file_name=f"Periodontitis_Report_{selected_id}.png",
+                mime="image/png"
+            )
 
             # QR Code generation for report access
             st.subheader("📲 Access Report via QR Code")

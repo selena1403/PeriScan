@@ -5,6 +5,7 @@ shap
 tensorflow
 matplotlib
 scikit-learn
-openpyxl
 qrcode
-Pillow
+pillow
+openpyxl
+ipython

@@ -7,22 +7,18 @@ import matplotlib.pyplot as plt
 from sklearn.preprocessing import StandardScaler
 import io
 import qrcode
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
+import os
 
 # --- Streamlit UI ---
 st.set_page_config(page_title="Periodontitis Risk Report", layout="wide")
 st.title("🦷 Periodontitis Prediction and SHAP Explanation")
-
-# Increase text size for the title
 st.markdown("<h2 style='text-align: center;'>Periodontitis Risk Prediction and Detailed SHAP Explanation</h2>", unsafe_allow_html=True)
 
 uploaded_file = st.file_uploader("Upload Excel file with patient data", type=["xlsx"])
-
-# Load trained model
-#model = tf.keras.models.load_model("D:/WORK/2. On going/7. New Lap/Research/KSHAP/STUDY_3_DL_routine blood test/XAI_binary_model_ori.h5") # for testing only
 model = tf.keras.models.load_model("XAI_binary_model_ori.h5")
 
-# Define raw and grouped features
+# --- Define Features ---
 Demographic_Clinical_Information = ['sex', 'age', 'bmi', 'pulse', 'sbpL', 'dbpL']
 Hematological_Parameters = ['wbc', 'rbc', 'hb', 'hct', 'plt']
 Lipid_Profile = ['t_chol', 'hdl', 'ldl']
@@ -47,9 +43,7 @@ if uploaded_file:
         selected_id = st.selectbox("Select Patient ID", patient_ids)
         selected_patient = df[df["ID"] == selected_id]
 
-        if selected_patient.empty:
-            st.warning("Selected patient not found.")
-        else:
+        if not selected_patient.empty:
             # Prepare data
             X_raw = df[raw_features]
             X_encoded = pd.get_dummies(X_raw)
@@ -58,33 +52,19 @@ if uploaded_file:
             X_scaled = scaler.fit_transform(X_encoded)
 
             input_raw = selected_patient[raw_features]
-            input_encoded = pd.get_dummies(input_raw)
-            input_encoded = input_encoded.reindex(columns=training_columns, fill_value=0)
+            input_encoded = pd.get_dummies(input_raw).reindex(columns=training_columns, fill_value=0)
             input_scaled = scaler.transform(input_encoded)
 
             # Prediction
             pred_prob = model.predict(input_scaled)[0][0]
             pred_label = "Periodontitis" if pred_prob >= 0.5 else "Non-Periodontitis"
+            color = "red" if pred_prob >= 0.5 else "green"
 
-            # Display result with icon
-            if pred_label == "Non-Periodontitis":
-                st.success("🟢 Prediction: **Non-Periodontitis**")
-                st.markdown("<div style='font-size: 18px; color: #CD853F; background-color: #FFFFE0; padding: 10px;'>✅ This patient shows no signs of periodontitis risk based on current biomarkers. Continue with regular dental care.</div>", unsafe_allow_html=True)
-            else:
-                st.error("🔴 Prediction: **Periodontitis**")
-                st.markdown("<div style='font-size: 18px; color: #CD853F; background-color: #FFFFE0; padding: 10px;'>⚠️ This patient may be at risk of periodontitis. Professional dental consultation is recommended for further evaluation.</div>", unsafe_allow_html=True)
+            # Display prediction
+            st.markdown(f"## 🧪 Prediction: <span style='color: {color};'>{pred_label}</span>", unsafe_allow_html=True)
+            st.markdown(f"**Predicted Probability:** <span style='font-size:18px; color:{color};'>{pred_prob:.4f}</span>", unsafe_allow_html=True)
 
-            # Conditional styling based on periodontitis risk
-            if pred_prob >= 0.5:
-                color = "red"
-            else:
-                color = "green"
-            
-            # Display the predicted probability with conditional styling
-            st.markdown(f"Predicted Probability: <span style='font-size: 18px; color: {color}; padding: 10px;'>{pred_prob:.4f}</span>", unsafe_allow_html=True)
-
-            # SHAP explanation
-            st.subheader("🔍 SHAP Force Plots by Feature Group")
+            # SHAP values
             shap.initjs()
             background = shap.sample(X_scaled, 100, random_state=42)
             explainer = shap.Explainer(model, background)
@@ -95,12 +75,12 @@ if uploaded_file:
             base_value = shap_values.base_values[0]
             feature_names = input_encoded.columns.tolist()
 
+            image_paths = []
             for group_name, group_features in feature_groups.items():
                 group_indices = [i for i, name in enumerate(feature_names) if name in group_features]
                 if not group_indices:
                     continue
 
-                st.markdown(f"<div style='font-size: 20px; font-weight: bold; color: #333;'> {group_name} </div>", unsafe_allow_html=True)
                 fig, ax = plt.subplots(figsize=(12, 2))
                 shap.force_plot(
                     base_value,
@@ -111,67 +91,56 @@ if uploaded_file:
                     show=False
                 )
                 plt.tight_layout()
-
                 buf = io.BytesIO()
                 plt.savefig(buf, format='png', dpi=300, bbox_inches='tight')
                 buf.seek(0)
                 plt.close()
+                img_path = f"shap_{group_name.replace(' ', '_')}_patient_{selected_id}.png"
+                with open(img_path, "wb") as f:
+                    f.write(buf.read())
+                image_paths.append((group_name, img_path))
+                st.image(img_path, caption=f"SHAP Force Plot - {group_name}")
 
-                st.image(buf, caption=f"SHAP Force Plot - {group_name}")
-                st.download_button(
-                    label=f"⬇️ Download {group_name} SHAP Plot",
-                    data=buf,
-                    file_name=f"shap_{group_name.replace(' ', '_')}_patient_{selected_id}.png",
-                    mime="image/png"
-                )
-            # Combine SHAP plots + prediction summary into a single report PNG
-from PIL import ImageDraw, ImageFont
+            # --- Generate Final Summary Report PNG ---
+            font_title = ImageFont.truetype("arial.ttf", 48) if os.name == "nt" else ImageFont.load_default()
+            font_body = ImageFont.truetype("arial.ttf", 28) if os.name == "nt" else ImageFont.load_default()
 
-# Step 1: Create a blank white canvas
-report_width = 1400
-line_height = 70
-padding = 50
-report_height = padding + (line_height * 4) + len(feature_groups) * 300 + 300  # Adjust height based on SHAP plots
-report_img = Image.new("RGB", (report_width, report_height), "white")
-draw = ImageDraw.Draw(report_img)
+            report_width = 1400
+            line_height = 70
+            padding = 50
+            report_height = padding + (line_height * 4) + len(image_paths) * 300 + 300
+            report_img = Image.new("RGB", (report_width, report_height), "white")
+            draw = ImageDraw.Draw(report_img)
 
-# Step 2: Add prediction result + text summary
-font_title = ImageFont.truetype("arial.ttf", 48)
-font_body = ImageFont.truetype("arial.ttf", 28)
+            draw.text((padding, padding), f"Periodontitis Prediction Report", fill="black", font=font_title)
+            draw.text((padding, padding + line_height), f"Patient ID: {selected_id}", fill="black", font=font_body)
+            draw.text((padding, padding + line_height*2), f"Prediction: {pred_label}", fill=color, font=font_body)
+            draw.text((padding, padding + line_height*3), f"Probability: {pred_prob:.4f}", fill="black", font=font_body)
 
-draw.text((padding, padding), f"Periodontitis Prediction Report", fill="black", font=font_title)
-draw.text((padding, padding + line_height), f"Patient ID: {selected_id}", fill="black", font=font_body)
-draw.text((padding, padding + line_height*2), f"Prediction: {pred_label}", fill=("red" if pred_label == "Periodontitis" else "green"), font=font_body)
-draw.text((padding, padding + line_height*3), f"Probability: {pred_prob:.4f}", fill="black", font=font_body)
+            y_offset = padding + line_height * 4
+            for group_name, path in image_paths:
+                shap_img = Image.open(path).resize((1200, 200))
+                report_img.paste(shap_img, (padding, y_offset))
+                y_offset += shap_img.size[1] + 40
 
-y_offset = padding + line_height * 4
+            summary_path = f"Periodontitis_Report_{selected_id}.png"
+            report_img.save(summary_path)
 
-# Step 3: Paste SHAP plots into report image
-for group_name in feature_groups:
-    shap_path = f"shap_{group_name.replace(' ', '_')}_patient_{selected_id}.png"
-    try:
-        shap_img = Image.open(shap_path).resize((1200, 200))
-        report_img.paste(shap_img, (padding, y_offset))
-        y_offset += shap_img.size[1] + 40
-    except FileNotFoundError:
-        continue
+            # QR Code
+            report_url = f"https://your_hosting_url/{summary_path}"  # Update to real host
+            qr = qrcode.make(report_url)
+            qr_buf = io.BytesIO()
+            qr.save(qr_buf, format='PNG')
+            qr_buf.seek(0)
 
-# Step 4: Save the full summary report image
-summary_path = f"Periodontitis_Report_{selected_id}.png"
-report_img.save(summary_path)
+            st.subheader("📝 Full Summary Report")
+            st.image(summary_path, caption="Complete Prediction Report")
+            st.download_button("⬇️ Download Full Report as PNG", data=open(summary_path, "rb"), file_name=summary_path, mime="image/png")
 
-# Step 5: Generate QR code to access the report
-# (replace with your actual URL or file hosting path)
-report_url = f"https://your_hosting_url/{summary_path}"  # <- Update this URL!
-qr = qrcode.make(report_url)
-qr_buf = io.BytesIO()
-qr.save(qr_buf, format='PNG')
-qr_buf.seek(0)
+            st.image(qr_buf, caption="📲 Scan QR to Access Report")
+        else:
+            st.warning("Selected patient not found.")
 
-# Step 6: Display the report and QR in Streamlit
-st.image(summary_path, caption="📝 Complete Prediction Report")
-st.image(qr_buf, caption="📲 Scan QR to Download Full Report")
-st.download_button("⬇️ Download Full Report as PNG", data=open(summary_path, "rb"), file_name=summary_path, mime="image/png")
 
 
 

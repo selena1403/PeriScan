@@ -1,0 +1,10 @@
+streamlit
+pandas
+numpy
+shap
+tensorflow
+matplotlib
+scikit-learn
+openpyxl
+qrcode
+Pillow

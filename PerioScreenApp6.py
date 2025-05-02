@@ -77,6 +77,48 @@ if uploaded_file:
             color = "red" if pred_prob >= 0.5 else "green"
             st.markdown(f"Predicted Probability: <span style='font-size: 18px; color: {color}; padding: 10px;'>{pred_prob:.4f}</span>", unsafe_allow_html=True)
 
+            # SHAP explanation
+            st.subheader("🔍 SHAP Force Plots by Feature Group")
+            shap.initjs()
+            background = shap.sample(X_scaled, 100, random_state=42)
+            explainer = shap.Explainer(model, background)
+            shap_values = explainer(input_scaled)
+
+            shap_vals = shap_values.values[0]
+            input_vals = input_encoded.iloc[0].values
+            base_value = shap_values.base_values[0]
+            feature_names = input_encoded.columns.tolist()
+
+            for group_name, group_features in feature_groups.items():
+                group_indices = [i for i, name in enumerate(feature_names) if name in group_features]
+                if not group_indices:
+                    continue
+
+                st.markdown(f"<div style='font-size: 20px; font-weight: bold; color: #333;'> {group_name} </div>", unsafe_allow_html=True)
+                fig, ax = plt.subplots(figsize=(12, 2))
+                shap.force_plot(
+                    base_value,
+                    shap_vals[group_indices],
+                    input_vals[group_indices],
+                    feature_names=[feature_names[i] for i in group_indices],
+                    matplotlib=True,
+                    show=False
+                )
+                plt.tight_layout()
+
+                buf = io.BytesIO()
+                plt.savefig(buf, format='png', dpi=300, bbox_inches='tight')
+                buf.seek(0)
+                plt.close()
+
+                st.image(buf, caption=f"SHAP Force Plot - {group_name}")
+                st.download_button(
+                    label=f"⬇️ Download {group_name} SHAP Plot",
+                    data=buf,
+                    file_name=f"shap_{group_name.replace(' ', '_')}_patient_{selected_id}.png",
+                    mime="image/png"
+                )
+                
             # SHAP values
             shap.initjs()
             background = shap.sample(X_scaled, 100, random_state=42)

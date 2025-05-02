@@ -193,7 +193,7 @@ if uploaded_file:
             
             # Add SHAP bar chart image
             y_offset = padding + line_height * (4 + text_lines - 1)
-            shap_img = Image.open(io.BytesIO(bar_chart_img)).resize((1200, 300))
+            shap_img = Image.open(io.BytesIO(bar_buf.getvalue())).resize((1200, 300))  # Corrected line here
             report_img.paste(shap_img, (padding, y_offset))
             y_offset += shap_img.size[1] + 40
             

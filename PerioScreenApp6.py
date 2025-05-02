@@ -37,7 +37,7 @@ feature_name_map = {
     'sex': 'Sex', 'age': 'Age', 'bmi': 'BMI', 'pulse': 'Pulse', 'sbpL': 'Systolic BP', 'dbpL': 'Diastolic BP',
     'wbc': 'White Blood Cells', 'rbc': 'Red Blood Cells', 'hb': 'Hemoglobin', 'hct': 'Hematocrit', 'plt': 'Platelets',
     't_chol': 'Total Cholesterol', 'hdl': 'HDL', 'ldl': 'LDL',
-    'dental_1': 'Dental Visit', 'teeth_3': 'Toothbrushing Frequency', 'teeth_problem': 'Tooth Problems'
+    'dental_1': 'Chewing Discomfort Score', 'teeth_3': 'Remaining Teeth Count', 'teeth_problem': 'Problematic Teeth Count'
 }
 
 # --- Main processing ---
@@ -75,9 +75,7 @@ if uploaded_file:
             color = "red" if pred_prob >= 0.5 else "green"
             st.markdown(f"Predicted Probability: <span style='font-size: 18px; color: {color}; padding: 10px;'>{pred_prob:.4f}</span>", unsafe_allow_html=True)
 
-            # SHAP explanation setup
-            st.subheader("🔍 SHAP Force Plots by Feature Group")
-            shap.initjs()
+           # SHAP explanation setup
             background = shap.sample(X_scaled, 100, random_state=42)
             explainer = shap.Explainer(model, background)
             shap_values = explainer(input_scaled)
@@ -85,32 +83,7 @@ if uploaded_file:
             input_vals = input_encoded.iloc[0].values
             base_value = shap_values.base_values[0]
             feature_names = input_encoded.columns.tolist()
-
-            shap_images = []
-            for idx, (group_name, group_features) in enumerate(feature_groups.items()):
-                group_indices = [i for i, name in enumerate(feature_names) if name in group_features]
-                if not group_indices:
-                    continue
-
-                st.markdown(f"<div style='font-size: 20px; font-weight: bold; color: #333;'> {group_name} </div>", unsafe_allow_html=True)
-                fig, ax = plt.subplots(figsize=(12, 2))
-                shap.force_plot(
-                    base_value,
-                    shap_vals[group_indices],
-                    input_vals[group_indices],
-                    feature_names=[feature_names[i] for i in group_indices],
-                    matplotlib=True,
-                    show=False
-                )
-                plt.tight_layout()
-
-                buf = io.BytesIO()
-                plt.savefig(buf, format='png', dpi=300, bbox_inches='tight')
-                buf.seek(0)
-                plt.close()
-                st.image(buf, caption=f"SHAP Force Plot - {group_name}")
-                shap_images.append((group_name, buf.getvalue()))
-
+            
             # SHAP bar chart
             friendly_feature_names = [feature_name_map.get(name, name) for name in feature_names]
             shap_df = pd.DataFrame({
@@ -121,7 +94,7 @@ if uploaded_file:
             shap_df["Abs_SHAP"] = shap_df["SHAP"].abs()
             shap_df = shap_df.sort_values(by="Abs_SHAP", ascending=False).head(10)
             shap_df["Color"] = shap_df["SHAP"].apply(lambda x: "red" if x > 0 else "green")
-
+            
             fig, ax = plt.subplots(figsize=(10, 6))
             bars = ax.barh(shap_df["Feature"], shap_df["SHAP"], color=shap_df["Color"])
             ax.set_title("Top Features Influencing Prediction", fontsize=16)
@@ -134,18 +107,24 @@ if uploaded_file:
                         f"{width:.3f}",
                         va='center', ha='left' if width > 0 else 'right')
             plt.tight_layout()
-
+            
             buf = io.BytesIO()
             plt.savefig(buf, format='png', dpi=300)
             buf.seek(0)
             plt.close()
             bar_chart_img = buf.getvalue()
-
-            # Revised summary
+            
+            # Explanation summary text
             highest_risk = shap_df.iloc[0]
+            summary_text = (
+                f"The most influential factor contributing to this prediction was "
+                f"**{highest_risk['Feature']}**, with a value of **{highest_risk['Value']:.2f}**, "
+                f"indicating a strong association with {'periodontitis' if highest_risk['SHAP'] > 0 else 'non-periodontitis'} risk."
+            )
+            
             st.markdown("### 🔍 Explanation Summary")
-            st.markdown(f"The most influential factors have been ranked. The highest risk factor was **{highest_risk['Feature']}** with a value of **{highest_risk['Value']:.2f}** contributing the most towards a periodontitis prediction. Please review the chart below for further details.", unsafe_allow_html=True)
-
+            st.markdown(summary_text, unsafe_allow_html=True)
+            
             # --- Generate Final Summary Report PNG ---
             font_title_size = 72
             font_body_size = 40
@@ -155,41 +134,46 @@ if uploaded_file:
             except:
                 font_title = ImageFont.load_default()
                 font_body = ImageFont.load_default()
-
+            
             report_width = 1400
             line_height = 90
             padding = 50
-            report_height = padding + (line_height * 4) + len(shap_images + [("SHAP Bar Chart", bar_chart_img)]) * 340
-
+            text_lines = 2  # For summary_text
+            report_height = padding + (line_height * (4 + text_lines)) + 340
+            
             report_img = Image.new("RGB", (report_width, report_height), "white")
             draw = ImageDraw.Draw(report_img)
             draw.text((padding, padding), "Periodontitis Prediction Report", fill="black", font=font_title)
             draw.text((padding, padding + line_height), f"Patient ID: {selected_id}", fill="black", font=font_body)
             draw.text((padding, padding + line_height*2), f"Prediction: {pred_label}", fill=color, font=font_body)
             draw.text((padding, padding + line_height*3), f"Probability: {pred_prob:.4f}", fill="black", font=font_body)
-
-            y_offset = padding + line_height * 4
-            for i, (group_name, img_data) in enumerate(shap_images + [("SHAP Bar Chart", bar_chart_img)]):
-                shap_img = Image.open(io.BytesIO(img_data)).resize((1200, 300))
-                report_img.paste(shap_img, (padding, y_offset))
-                y_offset += shap_img.size[1] + 40
-
+            draw.text((padding, padding + line_height*4), "Explanation:", fill="black", font=font_body)
+            
+            # Draw wrapped summary text
+            from textwrap import wrap
+            wrapped_text = wrap(summary_text, width=70)
+            for i, line in enumerate(wrapped_text):
+                draw.text((padding, padding + line_height * (5 + i)), line, fill="black", font=font_body)
+            
+            y_offset = padding + line_height * (5 + len(wrapped_text))
+            shap_img = Image.open(io.BytesIO(bar_chart_img)).resize((1200, 300))
+            report_img.paste(shap_img, (padding, y_offset))
+            y_offset += shap_img.size[1] + 40
+            
             img_io = io.BytesIO()
             report_img.save(img_io, format='PNG')
             img_io.seek(0)
-
+            
             # QR Code
             qr = qrcode.make("https://your_hosting_url/your_report_placeholder")
             qr_buf = io.BytesIO()
             qr.save(qr_buf, format='PNG')
             qr_buf.seek(0)
-
+            
             st.subheader("\U0001F4DD Full Summary Report")
             st.image(img_io, caption="Complete Prediction Report")
             st.download_button("⬇️ Download Full Report as PNG", data=img_io, file_name=f"Periodontitis_Report_{selected_id}.png", mime="image/png")
             st.image(qr_buf, caption="\U0001F4F2 Scan QR to Access Report")
-        else:
-            st.warning("Selected patient not found.")
 
 
 

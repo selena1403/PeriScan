@@ -115,16 +115,8 @@ if uploaded_file:
             plt.savefig(bar_buf, format='png', dpi=300)
             bar_buf.seek(0)
             bar_img = bar_buf.getvalue()
+            bar_chart = Image.open(io.BytesIO(bar_img))
             plt.close()
-            
-            # Explanation summary (rank + warning)
-            summary_lines = [f"Rank {i+1}: **{row['Feature']}** ({row['Value']:.2f}) - {'↑ Increases' if row['SHAP'] > 0 else '↓ Decreases'} risk"
-                             for i, (_, row) in enumerate(shap_df.iterrows())]
-            high_risk = shap_df.iloc[0]
-            warning_text = f"⚠️ Most influential risk factor: **{high_risk['Feature']}**. Monitor and manage closely."
-            summary_text = "\n".join(summary_lines) + f"\n\n{warning_text}"
-            st.markdown("### 🔍 Explanation Summary")
-            st.markdown(summary_text, unsafe_allow_html=True)
             
             # Collect SHAP force plots into a list
             image_buffers = []
@@ -159,6 +151,15 @@ if uploaded_file:
                     image_buffers.append(("SHAP Bar Chart", bar_img))
                 counter += 1
 
+            # Explanation summary (rank + warning) - moved after SHAP force plots
+            st.markdown("### 🔍 Explanation Summary")
+            summary_lines = [f"Rank {i+1}: **{row['Feature']}** ({row['Value']:.2f}) - {'↑ Increases' if row['SHAP'] > 0 else '↓ Decreases'} risk"
+                             for i, (_, row) in enumerate(shap_df.iterrows())]
+            high_risk = shap_df.iloc[0]
+            warning_text = f"⚠️ Most influential risk factor: **{high_risk['Feature']}**. Monitor and manage closely."
+            summary_text = "\n".join(summary_lines) + f"\n\n{warning_text}"
+            st.markdown(summary_text, unsafe_allow_html=True)
+            
             # --- Generate Final Summary Report PNG ---
             font_title_size = 100
             font_body_size = 90
@@ -192,7 +193,7 @@ if uploaded_file:
             
             # Add SHAP bar chart image
             y_offset = padding + line_height * (4 + text_lines - 1)
-            shap_img = Image.open(io.BytesIO(bar_img)).resize((1200, 300))
+            shap_img = Image.open(io.BytesIO(bar_chart_img)).resize((1200, 300))
             report_img.paste(shap_img, (padding, y_offset))
             y_offset += shap_img.size[1] + 40
             
@@ -211,6 +212,7 @@ if uploaded_file:
             st.image(img_io, caption="Complete Prediction Report")
             st.download_button("⬇️ Download Full Report as PNG", data=img_io, file_name=f"Periodontitis_Report_{selected_id}.png", mime="image/png")
             st.image(qr_buf, caption="\U0001F4F2 Scan QR to Access Report")
+
 
 
 

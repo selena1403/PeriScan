@@ -8,8 +8,6 @@ from sklearn.preprocessing import StandardScaler
 import io
 import qrcode
 from PIL import Image, ImageDraw, ImageFont
-from reportlab.lib.pagesizes import letter
-from reportlab.pdfgen import canvas
 
 # --- Streamlit UI ---
 st.set_page_config(page_title="Periodontitis Risk Report", layout="wide")
@@ -170,7 +168,6 @@ if uploaded_file:
             with open("/tmp/shap_report.png", "wb") as f:
                 f.write(bar_img)
             st.download_button("⬇️ Download Full Report as PNG", "/tmp/shap_report.png", file_name="shap_report.png", mime="image/png")
-
 
 
 

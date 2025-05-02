@@ -75,17 +75,20 @@ if uploaded_file:
             color = "red" if pred_prob >= 0.5 else "green"
             st.markdown(f"Predicted Probability: <span style='font-size: 18px; color: {color}; padding: 10px;'>{pred_prob:.4f}</span>", unsafe_allow_html=True)
 
-           # SHAP explanation setup
+           # SHAP explanation
+            st.subheader("🔍 SHAP Force Plots by Feature Group")
+            shap.initjs()
             background = shap.sample(X_scaled, 100, random_state=42)
             explainer = shap.Explainer(model, background)
             shap_values = explainer(input_scaled)
+            
             shap_vals = shap_values.values[0]
             input_vals = input_encoded.iloc[0].values
             base_value = shap_values.base_values[0]
             feature_names = input_encoded.columns.tolist()
-            
-            # SHAP bar chart
             friendly_feature_names = [feature_name_map.get(name, name) for name in feature_names]
+            
+            # SHAP summary bar chart
             shap_df = pd.DataFrame({
                 "Feature": friendly_feature_names,
                 "Value": input_vals,
@@ -108,38 +111,71 @@ if uploaded_file:
                         va='center', ha='left' if width > 0 else 'right')
             plt.tight_layout()
             
-            buf = io.BytesIO()
-            plt.savefig(buf, format='png', dpi=300)
-            buf.seek(0)
+            bar_buf = io.BytesIO()
+            plt.savefig(bar_buf, format='png', dpi=300)
+            bar_buf.seek(0)
+            bar_img = bar_buf.getvalue()
+            bar_chart = Image.open(io.BytesIO(bar_img))
             plt.close()
-            bar_chart_img = buf.getvalue()
             
-            # Explanation summary text
-            highest_risk = shap_df.iloc[0]
-            summary_text = (
-                f"The most influential factor contributing to this prediction was "
-                f"**{highest_risk['Feature']}**, with a value of **{highest_risk['Value']:.2f}**, "
-                f"indicating a strong association with {'periodontitis' if highest_risk['SHAP'] > 0 else 'non-periodontitis'} risk."
-            )
-            
+            # Explanation summary (rank + warning)
+            summary_lines = [f"Rank {i+1}: **{row['Feature']}** ({row['Value']:.2f}) - {'↑ Increases' if row['SHAP'] > 0 else '↓ Decreases'} risk"
+                             for i, (_, row) in enumerate(shap_df.iterrows())]
+            high_risk = shap_df.iloc[0]
+            warning_text = f"⚠️ Most influential risk factor: **{high_risk['Feature']}**. Monitor and manage closely."
+            summary_text = "\n".join(summary_lines) + f"\n\n{warning_text}"
             st.markdown("### 🔍 Explanation Summary")
             st.markdown(summary_text, unsafe_allow_html=True)
             
-            # --- Generate Final Summary Report PNG ---
-            font_title_size = 72
-            font_body_size = 40
-            try:
-                font_title = ImageFont.truetype("arial.ttf", font_title_size)
-                font_body = ImageFont.truetype("arial.ttf", font_body_size)
-            except:
-                font_title = ImageFont.load_default()
-                font_body = ImageFont.load_default()
+            # Collect SHAP force plots into a list
+            image_buffers = []
+            counter = 0
+            for group_name, group_features in feature_groups.items():
+                group_indices = [i for i, name in enumerate(feature_names) if name in group_features]
+                if not group_indices:
+                    continue
             
+                st.markdown(f"<div style='font-size: 20px; font-weight: bold; color: #333;'> {group_name} </div>", unsafe_allow_html=True)
+                fig, ax = plt.subplots(figsize=(12, 2))
+                shap.force_plot(
+                    base_value,
+                    shap_vals[group_indices],
+                    input_vals[group_indices],
+                    feature_names=[feature_names[i] for i in group_indices],
+                    matplotlib=True,
+                    show=False
+                )
+                plt.tight_layout()
+            
+                buf = io.BytesIO()
+                plt.savefig(buf, format='png', dpi=300, bbox_inches='tight')
+                buf.seek(0)
+                plt.close()
+            
+                st.image(buf, caption=f"SHAP Force Plot - {group_name}")
+                image_buffers.append((f"{group_name} SHAP", buf.getvalue()))
+            
+                # Alternate with bar chart once
+                if counter == 1:
+                    image_buffers.append(("SHAP Bar Chart", bar_img))
+                counter += 1
+                        
+                        # --- Generate Final Summary Report PNG ---
+                        font_title_size = 100
+                        font_body_size = 90
+                        try:
+                            font_title = ImageFont.truetype("arial.ttf", font_title_size)
+                            font_body = ImageFont.truetype("arial.ttf", font_body_size)
+                        except:
+                            font_title = ImageFont.load_default()
+                            font_body = ImageFont.load_default()
+            
+            # Add 2 lines for explanation summary, adjust height accordingly
+            text_lines = 2
             report_width = 1400
             line_height = 90
             padding = 50
-            text_lines = 2  # For summary_text
-            report_height = padding + (line_height * (4 + text_lines)) + 340
+            report_height = padding + (line_height * (4 + text_lines)) + 340  # only 1 image (bar chart)
             
             report_img = Image.new("RGB", (report_width, report_height), "white")
             draw = ImageDraw.Draw(report_img)
@@ -147,15 +183,16 @@ if uploaded_file:
             draw.text((padding, padding + line_height), f"Patient ID: {selected_id}", fill="black", font=font_body)
             draw.text((padding, padding + line_height*2), f"Prediction: {pred_label}", fill=color, font=font_body)
             draw.text((padding, padding + line_height*3), f"Probability: {pred_prob:.4f}", fill="black", font=font_body)
-            draw.text((padding, padding + line_height*4), "Explanation:", fill="black", font=font_body)
             
-            # Draw wrapped summary text
-            from textwrap import wrap
-            wrapped_text = wrap(summary_text, width=70)
-            for i, line in enumerate(wrapped_text):
-                draw.text((padding, padding + line_height * (5 + i)), line, fill="black", font=font_body)
+            # Explanation summary line
+            summary_text = (
+                f"Top contributing factor: {highest_risk['Feature']} "
+                f"(value: {highest_risk['Value']:.2f}) had the highest impact on the prediction."
+            )
+            draw.text((padding, padding + line_height*4), summary_text, fill="black", font=font_body)
             
-            y_offset = padding + line_height * (5 + len(wrapped_text))
+            # Add SHAP bar chart image
+            y_offset = padding + line_height * (4 + text_lines - 1)
             shap_img = Image.open(io.BytesIO(bar_chart_img)).resize((1200, 300))
             report_img.paste(shap_img, (padding, y_offset))
             y_offset += shap_img.size[1] + 40
@@ -164,17 +201,17 @@ if uploaded_file:
             report_img.save(img_io, format='PNG')
             img_io.seek(0)
             
-            # QR Code
+            # QR Code generation remains unchanged
             qr = qrcode.make("https://your_hosting_url/your_report_placeholder")
             qr_buf = io.BytesIO()
             qr.save(qr_buf, format='PNG')
             qr_buf.seek(0)
             
+            # Final report display
             st.subheader("\U0001F4DD Full Summary Report")
             st.image(img_io, caption="Complete Prediction Report")
             st.download_button("⬇️ Download Full Report as PNG", data=img_io, file_name=f"Periodontitis_Report_{selected_id}.png", mime="image/png")
             st.image(qr_buf, caption="\U0001F4F2 Scan QR to Access Report")
-
 
 
 

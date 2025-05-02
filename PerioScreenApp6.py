@@ -52,7 +52,6 @@ if uploaded_file:
         selected_patient = df[df["ID"] == selected_id]
 
         if not selected_patient.empty:
-            # Prepare data
             X_raw = df[raw_features]
             X_encoded = pd.get_dummies(X_raw)
             training_columns = X_encoded.columns
@@ -63,7 +62,6 @@ if uploaded_file:
             input_encoded = pd.get_dummies(input_raw).reindex(columns=training_columns, fill_value=0)
             input_scaled = scaler.transform(input_encoded)
 
-            # Prediction
             pred_prob = model.predict(input_scaled)[0][0]
             pred_label = "Periodontitis" if pred_prob >= 0.5 else "Non-Periodontitis"
 
@@ -77,19 +75,19 @@ if uploaded_file:
             color = "red" if pred_prob >= 0.5 else "green"
             st.markdown(f"Predicted Probability: <span style='font-size: 18px; color: {color}; padding: 10px;'>{pred_prob:.4f}</span>", unsafe_allow_html=True)
 
-            # SHAP explanation
+            # SHAP explanation setup
             st.subheader("🔍 SHAP Force Plots by Feature Group")
             shap.initjs()
             background = shap.sample(X_scaled, 100, random_state=42)
             explainer = shap.Explainer(model, background)
             shap_values = explainer(input_scaled)
-
             shap_vals = shap_values.values[0]
             input_vals = input_encoded.iloc[0].values
             base_value = shap_values.base_values[0]
             feature_names = input_encoded.columns.tolist()
 
-            for group_name, group_features in feature_groups.items():
+            shap_images = []
+            for idx, (group_name, group_features) in enumerate(feature_groups.items()):
                 group_indices = [i for i, name in enumerate(feature_names) if name in group_features]
                 if not group_indices:
                     continue
@@ -110,30 +108,11 @@ if uploaded_file:
                 plt.savefig(buf, format='png', dpi=300, bbox_inches='tight')
                 buf.seek(0)
                 plt.close()
-
                 st.image(buf, caption=f"SHAP Force Plot - {group_name}")
-                st.download_button(
-                    label=f"⬇️ Download {group_name} SHAP Plot",
-                    data=buf,
-                    file_name=f"shap_{group_name.replace(' ', '_')}_patient_{selected_id}.png",
-                    mime="image/png"
-                )
-                
-            # SHAP values
-            shap.initjs()
-            background = shap.sample(X_scaled, 100, random_state=42)
-            explainer = shap.Explainer(model, background)
-            shap_values = explainer(input_scaled)
+                shap_images.append((group_name, buf.getvalue()))
 
-            shap_vals = shap_values.values[0]
-            input_vals = input_encoded.iloc[0].values
-            base_value = shap_values.base_values[0]
-            feature_names = input_encoded.columns.tolist()
-
-            # Convert technical names to friendly labels
+            # SHAP bar chart
             friendly_feature_names = [feature_name_map.get(name, name) for name in feature_names]
-
-            # Build DataFrame for SHAP summary
             shap_df = pd.DataFrame({
                 "Feature": friendly_feature_names,
                 "Value": input_vals,
@@ -161,18 +140,11 @@ if uploaded_file:
             buf.seek(0)
             plt.close()
             bar_chart_img = buf.getvalue()
-            bar_chart = Image.open(io.BytesIO(bar_chart_img))
 
-            # Natural-language summary
-            summary_lines = []
-            for _, row in shap_df.iterrows():
-                direction = "increased" if row["SHAP"] > 0 else "decreased"
-                summary_lines.append(f"- **{row['Feature']}** ({row['Value']:.2f}) {direction} the risk of periodontitis.")
-            summary_text = "\n".join(summary_lines)
+            # Revised summary
+            highest_risk = shap_df.iloc[0]
             st.markdown("### 🔍 Explanation Summary")
-            st.markdown(summary_text, unsafe_allow_html=True)
-
-            image_buffers = [("SHAP Bar Chart", bar_chart_img)]
+            st.markdown(f"The most influential factors have been ranked. The highest risk factor was **{highest_risk['Feature']}** with a value of **{highest_risk['Value']:.2f}** contributing the most towards a periodontitis prediction. Please review the chart below for further details.", unsafe_allow_html=True)
 
             # --- Generate Final Summary Report PNG ---
             font_title_size = 72
@@ -187,7 +159,7 @@ if uploaded_file:
             report_width = 1400
             line_height = 90
             padding = 50
-            report_height = padding + (line_height * 4) + len(image_buffers) * 300 + 300
+            report_height = padding + (line_height * 4) + len(shap_images + [("SHAP Bar Chart", bar_chart_img)]) * 340
 
             report_img = Image.new("RGB", (report_width, report_height), "white")
             draw = ImageDraw.Draw(report_img)
@@ -197,7 +169,7 @@ if uploaded_file:
             draw.text((padding, padding + line_height*3), f"Probability: {pred_prob:.4f}", fill="black", font=font_body)
 
             y_offset = padding + line_height * 4
-            for chart_title, img_data in image_buffers:
+            for i, (group_name, img_data) in enumerate(shap_images + [("SHAP Bar Chart", bar_chart_img)]):
                 shap_img = Image.open(io.BytesIO(img_data)).resize((1200, 300))
                 report_img.paste(shap_img, (padding, y_offset))
                 y_offset += shap_img.size[1] + 40

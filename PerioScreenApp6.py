@@ -8,6 +8,7 @@ from sklearn.preprocessing import StandardScaler
 import io
 import qrcode
 from PIL import Image, ImageDraw, ImageFont
+import os
 
 # --- Streamlit UI ---
 st.set_page_config(page_title="Periodontitis Risk Report", layout="wide")
@@ -31,6 +32,7 @@ feature_groups = {
 }
 raw_features = Demographic_Clinical_Information + Hematological_Parameters + Lipid_Profile + Oral_health
 
+# Friendly feature names for output
 feature_name_map = {
     'sex': 'Sex', 'age': 'Age', 'bmi': 'BMI', 'pulse': 'Pulse', 'sbpL': 'Systolic BP', 'dbpL': 'Diastolic BP',
     'wbc': 'White Blood Cells', 'rbc': 'Red Blood Cells', 'hb': 'Hemoglobin', 'hct': 'Hematocrit', 'plt': 'Platelets',
@@ -101,31 +103,20 @@ if uploaded_file:
             ax.set_title("Top Features Influencing Prediction", fontsize=16)
             ax.set_xlabel("SHAP Value")
             ax.invert_yaxis()
-
-            # Increase font size and wrap text in bar plot
             for bar in bars:
                 width = bar.get_width()
                 ax.text(width + 0.01 if width > 0 else width - 0.05,
                         bar.get_y() + bar.get_height()/2,
                         f"{width:.3f}",
-                        va='center', ha='left' if width > 0 else 'right', fontsize=12)
-
+                        va='center', ha='left' if width > 0 else 'right')
             plt.tight_layout()
             
             bar_buf = io.BytesIO()
             plt.savefig(bar_buf, format='png', dpi=300)
             bar_buf.seek(0)
             bar_img = bar_buf.getvalue()
+            bar_chart = Image.open(io.BytesIO(bar_img))
             plt.close()
-
-            # Explanation summary (rank + warning)
-            summary_lines = [f"Rank {i+1}: **{row['Feature']}** ({row['Value']:.2f}) - {'↑ Increases' if row['SHAP'] > 0 else '↓ Decreases'} risk"
-                             for i, (_, row) in enumerate(shap_df.iterrows())]
-            high_risk = shap_df.iloc[0]
-            warning_text = f"⚠️ Most influential risk factor: **{high_risk['Feature']}**. Monitor and manage closely."
-            summary_text = "\n".join(summary_lines) + f"\n\n{warning_text}"
-            st.markdown("### 🔍 Explanation Summary")
-            st.markdown(summary_text, unsafe_allow_html=True)
             
             # Collect SHAP force plots into a list
             image_buffers = []
@@ -160,14 +151,67 @@ if uploaded_file:
                     image_buffers.append(("SHAP Bar Chart", bar_img))
                 counter += 1
 
-            # --- Generate Full Summary Report ---
-            st.markdown("### 📄 Full Summary Report")
-            st.image(bar_img, caption="SHAP Bar Chart of Features Influencing Prediction")
+            # Explanation summary (rank + warning) - moved after SHAP force plots
+            st.markdown("### 🔍 Explanation Summary")
+            summary_lines = [f"Rank {i+1}: **{row['Feature']}** ({row['Value']:.2f}) - {'↑ Increases' if row['SHAP'] > 0 else '↓ Decreases'} risk"
+                             for i, (_, row) in enumerate(shap_df.iterrows())]
+            high_risk = shap_df.iloc[0]
+            warning_text = f"⚠️ Most influential risk factor: **{high_risk['Feature']}**. Monitor and manage closely."
+            summary_text = "\n".join(summary_lines) + f"\n\n{warning_text}"
+            st.markdown(summary_text, unsafe_allow_html=True)
             
-            # Provide download link for the PNG report
-            with open("/tmp/shap_report.png", "wb") as f:
-                f.write(bar_img)
-            st.download_button("⬇️ Download Full Report as PNG", "/tmp/shap_report.png", file_name="shap_report.png", mime="image/png")
+            # --- Generate Final Summary Report PNG ---
+            font_title_size = 100
+            font_body_size = 90
+            try:
+                font_title = ImageFont.truetype("arial.ttf", font_title_size)
+                font_body = ImageFont.truetype("arial.ttf", font_body_size)
+            except:
+                font_title = ImageFont.load_default()
+                font_body = ImageFont.load_default()
+            
+            # Add 2 lines for explanation summary, adjust height accordingly
+            text_lines = 2
+            report_width = 1400
+            line_height = 90
+            padding = 50
+            report_height = padding + (line_height * (4 + text_lines)) + 340  # only 1 image (bar chart)
+            
+            report_img = Image.new("RGB", (report_width, report_height), "white")
+            draw = ImageDraw.Draw(report_img)
+            draw.text((padding, padding), "Periodontitis Prediction Report", fill="black", font=font_title)
+            draw.text((padding, padding + line_height), f"Patient ID: {selected_id}", fill="black", font=font_body)
+            draw.text((padding, padding + line_height*2), f"Prediction: {pred_label}", fill=color, font=font_body)
+            draw.text((padding, padding + line_height*3), f"Probability: {pred_prob:.4f}", fill="black", font=font_body)
+            
+            # Explanation summary line
+            summary_text = (
+                f"Top contributing factor: {high_risk['Feature']} "
+                f"(value: {high_risk['Value']:.2f}) had the highest impact on the prediction."
+            )
+            draw.text((padding, padding + line_height*4), summary_text, fill="black", font=font_body)
+            
+            # Add SHAP bar chart image
+            y_offset = padding + line_height * (4 + text_lines - 1)
+            shap_img = Image.open(io.BytesIO(bar_buf.getvalue())).resize((1200, 300))  # Corrected line here
+            report_img.paste(shap_img, (padding, y_offset))
+            y_offset += shap_img.size[1] + 40
+            
+            img_io = io.BytesIO()
+            report_img.save(img_io, format='PNG')
+            img_io.seek(0)
+            
+            # QR Code generation remains unchanged
+            qr = qrcode.make("https://your_hosting_url/your_report_placeholder")
+            qr_buf = io.BytesIO()
+            qr.save(qr_buf, format='PNG')
+            qr_buf.seek(0)
+            
+            # Final report display
+            st.subheader("\U0001F4DD Full Summary Report")
+            st.image(img_io, caption="Complete Prediction Report")
+            st.download_button("⬇️ Download Full Report as PNG", data=img_io, file_name=f"Periodontitis_Report_{selected_id}.png", mime="image/png")
+            st.image(qr_buf, caption="\U0001F4F2 Scan QR to Access Report")
 
 
 

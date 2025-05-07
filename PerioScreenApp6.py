@@ -106,7 +106,7 @@ if uploaded_file:
             ax.set_xlabel("SHAP Value")
             ax.invert_yaxis()
 
-            # Add legend
+            # Add legend explicitly
             legend_elements = [
                 Line2D([0], [0], color='green', lw=4, label='Reduces Risk'),
                 Line2D([0], [0], color='red', lw=4, label='Increases Risk')
@@ -211,6 +211,7 @@ if uploaded_file:
             st.image(img_io, caption="Complete Prediction Report")
             st.download_button("⬇️ Download Report", data=img_io, file_name=f"Periodontitis_Report_{selected_id}.jpg", mime="image/jpeg")
             st.image(qr_buf, caption="📱 Scan QR to Access Report")
+
 
 
 

@@ -161,8 +161,10 @@ if uploaded_file:
             st.markdown(summary_text, unsafe_allow_html=True)
             
             # --- Generate Final Summary Report PNG ---
-            font_title_size = 1000
-            font_body_size = 900
+            # Font setup with reasonable sizes
+            font_title_size = 40
+            font_body_size = 24
+            
             try:
                 font_title = ImageFont.truetype("arial.ttf", font_title_size)
                 font_body = ImageFont.truetype("arial.ttf", font_body_size)
@@ -170,48 +172,51 @@ if uploaded_file:
                 font_title = ImageFont.load_default()
                 font_body = ImageFont.load_default()
             
-            # Add 2 lines for explanation summary, adjust height accordingly
-            text_lines = 2
-            report_width = 50
+            # Report layout configuration
             line_height = 50
             padding = 50
-            report_height = padding + (line_height * (4 + text_lines)) + 340  # only 1 image (bar chart)
+            text_lines = 5  # Title + Patient ID + Prediction + Probability + Top factor
+            shap_image_height = 600
+            report_width = 1200
+            report_height = padding * 2 + line_height * text_lines + shap_image_height + 60  # Adjusted total height
             
+            # Create base image
             report_img = Image.new("RGB", (report_width, report_height), "white")
             draw = ImageDraw.Draw(report_img)
-            draw.text((padding, padding), "Periodontitis Prediction Report", fill="black", font=font_title)
-            draw.text((padding, padding + line_height), f"Patient ID: {selected_id}", fill="black", font=font_body)
-            draw.text((padding, padding + line_height*2), f"Prediction: {pred_label}", fill=color, font=font_body)
-            draw.text((padding, padding + line_height*3), f"Probability: {pred_prob:.4f}", fill="black", font=font_body)
             
-            # Explanation summary line
+            # Draw text information
+            draw.text((padding, padding), "🦷 Periodontitis Prediction Report", fill="black", font=font_title)
+            draw.text((padding, padding + line_height * 1), f"Patient ID: {selected_id}", fill="black", font=font_body)
+            draw.text((padding, padding + line_height * 2), f"Prediction: {pred_label}", fill=color, font=font_body)
+            draw.text((padding, padding + line_height * 3), f"Probability: {pred_prob:.4f}", fill="black", font=font_body)
+            
             summary_text = (
                 f"Top contributing factor: {high_risk['Feature']} "
                 f"(value: {high_risk['Value']:.2f}) had the highest impact on the prediction."
             )
-            draw.text((padding, padding + line_height*4), summary_text, fill="black", font=font_body)
+            draw.text((padding, padding + line_height * 4), summary_text, fill="black", font=font_body)
             
-            # Add SHAP bar chart image
-            y_offset = padding + line_height * (4 + text_lines - 1)
-            shap_img = Image.open(io.BytesIO(bar_buf.getvalue())).resize((1200, 1000))  # Corrected line here
+            # Paste SHAP bar chart image
+            y_offset = padding + line_height * text_lines
+            shap_img = Image.open(io.BytesIO(bar_buf.getvalue())).resize((report_width - 2 * padding, shap_image_height))
             report_img.paste(shap_img, (padding, y_offset))
-            y_offset += shap_img.size[1] + 40
             
+            # Save image to BytesIO buffer
             img_io = io.BytesIO()
-            report_img.save(img_io, format='JPG')
+            report_img.save(img_io, format='JPEG')  # Correct format
             img_io.seek(0)
             
-            # QR Code generation remains unchanged
+            # Generate QR code linking to report (dummy URL for now)
             qr = qrcode.make("https://your_hosting_url/your_report_placeholder")
             qr_buf = io.BytesIO()
             qr.save(qr_buf, format='PNG')
             qr_buf.seek(0)
             
             # Final report display
-            st.subheader("\U0001F4DD Summary Report")
+            st.subheader("📝 Summary Report")
             st.image(img_io, caption="Complete Prediction Report")
-            st.download_button("⬇️ Download Report", data=img_io, file_name=f"Periodontitis_Report_{selected_id}.jpg", mime="image/jpg")
-            st.image(qr_buf, caption="\U0001F4F2 Scan QR to Access Report")
+            st.download_button("⬇️ Download Report", data=img_io, file_name=f"Periodontitis_Report_{selected_id}.jpg", mime="image/jpeg")
+            st.image(qr_buf, caption="📱 Scan QR to Access Report")
 
 
 

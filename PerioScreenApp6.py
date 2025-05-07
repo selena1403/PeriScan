@@ -172,7 +172,7 @@ if uploaded_file:
             
             # Add 2 lines for explanation summary, adjust height accordingly
             text_lines = 2
-            report_width = 1400
+            report_width = 100
             line_height = 90
             padding = 50
             report_height = padding + (line_height * (4 + text_lines)) + 340  # only 1 image (bar chart)
@@ -208,9 +208,9 @@ if uploaded_file:
             qr_buf.seek(0)
             
             # Final report display
-            st.subheader("\U0001F4DD Full Summary Report")
+            st.subheader("\U0001F4DD Summary Report")
             st.image(img_io, caption="Complete Prediction Report")
-            st.download_button("⬇️ Download Full Report as PNG", data=img_io, file_name=f"Periodontitis_Report_{selected_id}.png", mime="image/png")
+            st.download_button("⬇️ Download Full Report", data=img_io, file_name=f"Periodontitis_Report_{selected_id}.jpg", mime="image/jpg")
             st.image(qr_buf, caption="\U0001F4F2 Scan QR to Access Report")
 
 

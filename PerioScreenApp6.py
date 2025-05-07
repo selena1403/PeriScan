@@ -161,8 +161,8 @@ if uploaded_file:
             st.markdown(summary_text, unsafe_allow_html=True)
             
             # --- Generate Final Summary Report PNG ---
-            font_title_size = 100
-            font_body_size = 90
+            font_title_size = 1000
+            font_body_size = 900
             try:
                 font_title = ImageFont.truetype("arial.ttf", font_title_size)
                 font_body = ImageFont.truetype("arial.ttf", font_body_size)
@@ -172,8 +172,8 @@ if uploaded_file:
             
             # Add 2 lines for explanation summary, adjust height accordingly
             text_lines = 2
-            report_width = 100
-            line_height = 90
+            report_width = 50
+            line_height = 50
             padding = 50
             report_height = padding + (line_height * (4 + text_lines)) + 340  # only 1 image (bar chart)
             

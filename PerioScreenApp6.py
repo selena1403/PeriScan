@@ -193,12 +193,12 @@ if uploaded_file:
             
             # Add SHAP bar chart image
             y_offset = padding + line_height * (4 + text_lines - 1)
-            shap_img = Image.open(io.BytesIO(bar_buf.getvalue())).resize((1200, 300))  # Corrected line here
+            shap_img = Image.open(io.BytesIO(bar_buf.getvalue())).resize((1200, 1000))  # Corrected line here
             report_img.paste(shap_img, (padding, y_offset))
             y_offset += shap_img.size[1] + 40
             
             img_io = io.BytesIO()
-            report_img.save(img_io, format='PNG')
+            report_img.save(img_io, format='JPG')
             img_io.seek(0)
             
             # QR Code generation remains unchanged
@@ -210,7 +210,7 @@ if uploaded_file:
             # Final report display
             st.subheader("\U0001F4DD Summary Report")
             st.image(img_io, caption="Complete Prediction Report")
-            st.download_button("⬇️ Download Full Report", data=img_io, file_name=f"Periodontitis_Report_{selected_id}.jpg", mime="image/jpg")
+            st.download_button("⬇️ Download Report", data=img_io, file_name=f"Periodontitis_Report_{selected_id}.jpg", mime="image/jpg")
             st.image(qr_buf, caption="\U0001F4F2 Scan QR to Access Report")
 
 

@@ -111,7 +111,7 @@ if uploaded_file:
                 Line2D([0], [0], color='green', lw=4, label='Reduces Risk'),
                 Line2D([0], [0], color='red', lw=4, label='Increases Risk')
             ]
-            ax.legend(handles=legend_elements, loc='upper right')
+            ax.legend(handles=legend_elements, loc='bottom right')
 
             # Adjust layout to prevent clipping
             plt.tight_layout()

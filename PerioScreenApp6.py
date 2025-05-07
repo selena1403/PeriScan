@@ -9,7 +9,7 @@ import io
 import qrcode
 from PIL import Image, ImageDraw, ImageFont
 import os
-from matplotlib.lines import Line2D  # For the custom legend
+from matplotlib.lines import Line2D
 
 # --- Streamlit UI ---
 st.set_page_config(page_title="Periodontitis Risk Report", layout="wide")
@@ -17,18 +17,17 @@ st.title("🦷 Periodontitis Prediction and SHAP Explanation")
 st.markdown("<h2 style='text-align: center;'>Periodontitis Risk Prediction and Detailed SHAP Explanation</h2>", unsafe_allow_html=True)
 
 # --- Load Patient Data ---
-patient_data_path = "WAVE_1L5K_with_binary_periodontitis.xlsx"  # <-- Update path as needed
+patient_data_path = "WAVE_1L5K_with_binary_periodontitis.xlsx"
 df = pd.read_excel(patient_data_path)
 
 # --- Load Trained Model ---
 model = tf.keras.models.load_model("XAI_binary_model_ori.h5")
 
-# --- Define Features ---
+# --- Feature Definitions ---
 Demographic_Clinical_Information = ['sex', 'age', 'bmi', 'pulse', 'sbpL', 'dbpL']
 Hematological_Parameters = ['wbc', 'rbc', 'hb', 'hct', 'plt']
 Lipid_Profile = ['t_chol', 'hdl', 'ldl']
 Oral_health = ['dental_1', 'teeth_3', 'teeth_problem']
-
 feature_groups = {
     "Demographic / Clinical": Demographic_Clinical_Information,
     "Hematological Parameters": Hematological_Parameters,
@@ -53,6 +52,7 @@ else:
     selected_patient = df[df["ID"] == selected_id]
 
     if not selected_patient.empty:
+        # Preprocessing
         X_raw = df[raw_features]
         X_encoded = pd.get_dummies(X_raw)
         training_columns = X_encoded.columns
@@ -63,6 +63,7 @@ else:
         input_encoded = pd.get_dummies(input_raw).reindex(columns=training_columns, fill_value=0)
         input_scaled = scaler.transform(input_encoded)
 
+        # --- Prediction ---
         pred_prob = model.predict(input_scaled)[0][0]
         pred_label = "Periodontitis" if pred_prob >= 0.5 else "Non-Periodontitis"
         color = "red" if pred_prob >= 0.5 else "green"
@@ -100,15 +101,17 @@ else:
 
         # --- SHAP Bar Plot ---
         fig, ax = plt.subplots(figsize=(10, 6))
-        bars = ax.barh(shap_df["Feature"], shap_df["SHAP"], color=shap_df["Color"])
+        ax.barh(shap_df["Feature"], shap_df["SHAP"], color=shap_df["Color"])
         ax.set_title("Top Features Influencing Prediction", fontsize=16)
         ax.set_xlabel("SHAP Value")
         ax.invert_yaxis()
-        legend_elements = [
-            Line2D([0], [0], color='green', lw=4, label='Protective Factor'),
-            Line2D([0], [0], color='red', lw=4, label='Risk Factor')
-        ]
-        ax.legend(handles=legend_elements, loc='upper left', bbox_to_anchor=(1.05, 1))
+        ax.legend(
+            handles=[
+                Line2D([0], [0], color='green', lw=4, label='Protective Factor'),
+                Line2D([0], [0], color='red', lw=4, label='Risk Factor')
+            ],
+            loc='upper left', bbox_to_anchor=(1.05, 1)
+        )
         plt.tight_layout()
 
         bar_buf = io.BytesIO()
@@ -158,7 +161,7 @@ else:
         summary_text = "\n".join(summary_lines) + f"\n\n{warning_text}"
         st.markdown(summary_text, unsafe_allow_html=True)
 
-        # --- Report Generation ---
+        # --- Report Image Generation ---
         font_title_size = 42
         font_body_size = 32
         try:

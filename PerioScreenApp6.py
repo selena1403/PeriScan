@@ -103,12 +103,12 @@ if uploaded_file:
             ax.set_title("Top Features Influencing Prediction", fontsize=16)
             ax.set_xlabel("SHAP Value")
             ax.invert_yaxis()
-            for bar in bars:
-                width = bar.get_width()
-                ax.text(width + 0.01 if width > 0 else width - 0.05,
-                        bar.get_y() + bar.get_height()/2,
-                        f"{width:.3f}",
-                        va='center', ha='left' if width > 0 else 'right')
+            #for bar in bars:
+                #width = bar.get_width()
+                #ax.text(width + 0.01 if width > 0 else width - 0.05,
+                        #bar.get_y() + bar.get_height()/2,
+                        #f"{width:.3f}",
+                        #va='center', ha='left' if width > 0 else 'right')
             plt.tight_layout()
             
             bar_buf = io.BytesIO()

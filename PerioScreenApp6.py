@@ -87,12 +87,6 @@ if uploaded_file:
         ax.tick_params(axis='y', labelsize=12)
         ax.tick_params(axis='x', labelsize=12)
         ax.invert_yaxis()
-        for bar in bars:
-            width = bar.get_width()
-            ax.text(width + 0.02 if width > 0 else width - 0.02,
-                    bar.get_y() + bar.get_height()/2,
-                    f"{width:.2f}", va='center',
-                    ha='left' if width > 0 else 'right', fontsize=12)
         plt.tight_layout()
 
         bar_buf = io.BytesIO()
@@ -106,8 +100,8 @@ if uploaded_file:
 
         # --- Report Generation ---
         try:
-            font_title = ImageFont.truetype("arial.ttf", 90)
-            font_body = ImageFont.truetype("arial.ttf", 70)
+            font_title = ImageFont.truetype("arial.ttf", 900)
+            font_body = ImageFont.truetype("arial.ttf", 700)
         except:
             font_title = ImageFont.load_default()
             font_body = ImageFont.load_default()

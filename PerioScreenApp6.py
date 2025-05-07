@@ -9,6 +9,7 @@ import io
 import qrcode
 from PIL import Image, ImageDraw, ImageFont
 import os
+from matplotlib.lines import Line2D  # For the custom legend
 
 # --- Streamlit UI ---
 st.set_page_config(page_title="Periodontitis Risk Report", layout="wide")
@@ -94,13 +95,28 @@ if uploaded_file:
             shap_df = shap_df.sort_values(by="Abs_SHAP", ascending=False).head(10)
             shap_df["Color"] = shap_df["SHAP"].apply(lambda x: "red" if x > 0 else "green")
 
+            # --- SHAP Bar Plot with Legend ---
             fig, ax = plt.subplots(figsize=(10, 6))
-            ax.barh(shap_df["Feature"], shap_df["SHAP"], color=shap_df["Color"])
+
+            # Bar plot
+            bars = ax.barh(shap_df["Feature"], shap_df["SHAP"], color=shap_df["Color"])
+
+            # Title and labels
             ax.set_title("Top Features Influencing Prediction", fontsize=16)
             ax.set_xlabel("SHAP Value")
             ax.invert_yaxis()
+
+            # Add legend
+            legend_elements = [
+                Line2D([0], [0], color='green', lw=4, label='Reduces Risk'),
+                Line2D([0], [0], color='red', lw=4, label='Increases Risk')
+            ]
+            ax.legend(handles=legend_elements, loc='upper right')
+
+            # Adjust layout to prevent clipping
             plt.tight_layout()
 
+            # Save plot to buffer
             bar_buf = io.BytesIO()
             plt.savefig(bar_buf, format='png', dpi=300)
             bar_buf.seek(0)
@@ -195,6 +211,7 @@ if uploaded_file:
             st.image(img_io, caption="Complete Prediction Report")
             st.download_button("⬇️ Download Report", data=img_io, file_name=f"Periodontitis_Report_{selected_id}.jpg", mime="image/jpeg")
             st.image(qr_buf, caption="📱 Scan QR to Access Report")
+
 
 
 

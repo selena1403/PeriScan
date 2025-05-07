@@ -108,8 +108,8 @@ if uploaded_file:
 
             # Add legend explicitly
             legend_elements = [
-                Line2D([0], [0], color='green', lw=4, label='Reduces Risk'),
-                Line2D([0], [0], color='red', lw=4, label='Increases Risk')
+                Line2D([0], [0], color='green', lw=4, label='Protective Factor'),
+                Line2D([0], [0], color='red', lw=4, label='Risk Factor')
             ]
             ax.legend(handles=legend_elements, loc='upper left', bbox_to_anchor=(1.05, 1))
 

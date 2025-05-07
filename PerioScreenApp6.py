@@ -19,8 +19,7 @@ st.markdown("<h2 style='text-align: center;'>Periodontitis Risk Prediction and D
 uploaded_file = st.file_uploader("Upload Excel file with patient data", type=["xlsx"])
 
 # Load trained model
-#model = tf.keras.models.load_model("D:/WORK/2. On going/7. New Lap/Research/KSHAP/STUDY_3_DL_routine blood test/XAI_binary_model_ori.h5") # for testing only
-model = tf.keras.models.load_model("XAI_binary_model_ori.h5")
+model = tf.keras.models.load_model("D:/WORK/2. On going/7. New Lap/Research/KSHAP/STUDY_3_DL_routine blood test/XAI_binary_model_ori.h5")
 
 # Define raw and grouped features
 Demographic_Clinical_Information = ['sex', 'age', 'bmi', 'pulse', 'sbpL', 'dbpL']
@@ -129,7 +128,7 @@ if uploaded_file:
             st.subheader("📲 Access Report via QR Code")
             
             # Update this to your actual report URL or server path
-            report_url = f"https://periscan-zkmmz4bp2srn793a8bpx4g.streamlit.app/{selected_id}"  # <-- Replace this!
+            report_url = f"https://yourappdomain.com/report/{selected_id}"  # <-- Replace this!
 
             qr = qrcode.make(report_url)
             qr_buf = io.BytesIO()
@@ -137,6 +136,7 @@ if uploaded_file:
             qr_buf.seek(0)
 
             st.image(qr_buf, caption="Scan to Access the Report")
+
 
 
 

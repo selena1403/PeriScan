@@ -202,7 +202,7 @@ if uploaded_file:
             report_img.save(img_io, format='JPEG')
             img_io.seek(0)
 
-            qr = qrcode.make("https://your_hosting_url/your_report_placeholder")
+            qr = qrcode.make("https://periscan-zkmmz4bp2srn793a8bpx4g.streamlit.app/")
             qr_buf = io.BytesIO()
             qr.save(qr_buf, format='PNG')
             qr_buf.seek(0)

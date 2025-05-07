@@ -19,7 +19,7 @@ st.markdown("<h2 style='text-align: center;'>Periodontitis Risk Prediction and D
 model = tf.keras.models.load_model("XAI_binary_model_ori.h5")
 
 # Load patient data from GitHub
-github_excel_url = "https://github.com/selena1403/PeriScan/blob/main/WAVE_1L5K_with_binary_periodontitis.xlsx"  # <-- Update this URL
+github_excel_url = "https://raw.githubusercontent.com/selena1403/PeriScan/main/WAVE_1L5K_with_binary_periodontitis.xlsx"  # <-- Update this URL
 df = pd.read_excel(github_excel_url)
 
 # --- Define Features ---

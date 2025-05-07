@@ -160,10 +160,9 @@ if uploaded_file:
             summary_text = "\n".join(summary_lines) + f"\n\n{warning_text}"
             st.markdown(summary_text, unsafe_allow_html=True)
             
-            # --- Generate Final Summary Report PNG ---
-            # Font setup with reasonable sizes
-            font_title_size = 40
-            font_body_size = 24
+            # --- Generate Final Summary Report PNG with Larger Text ---
+            font_title_size = 60
+            font_body_size = 36
             
             try:
                 font_title = ImageFont.truetype("arial.ttf", font_title_size)
@@ -172,19 +171,19 @@ if uploaded_file:
                 font_title = ImageFont.load_default()
                 font_body = ImageFont.load_default()
             
-            # Report layout configuration
-            line_height = 50
-            padding = 50
-            text_lines = 5  # Title + Patient ID + Prediction + Probability + Top factor
-            shap_image_height = 600
-            report_width = 1200
-            report_height = padding * 2 + line_height * text_lines + shap_image_height + 60  # Adjusted total height
+            # Layout configuration
+            line_height = 70
+            padding = 80
+            text_lines = 5  # Title, ID, Prediction, Probability, Summary
+            shap_image_height = 800
+            report_width = 1600
+            report_height = padding * 2 + line_height * text_lines + shap_image_height + 60
             
             # Create base image
             report_img = Image.new("RGB", (report_width, report_height), "white")
             draw = ImageDraw.Draw(report_img)
             
-            # Draw text information
+            # Draw the report text
             draw.text((padding, padding), "🦷 Periodontitis Prediction Report", fill="black", font=font_title)
             draw.text((padding, padding + line_height * 1), f"Patient ID: {selected_id}", fill="black", font=font_body)
             draw.text((padding, padding + line_height * 2), f"Prediction: {pred_label}", fill=color, font=font_body)
@@ -201,18 +200,18 @@ if uploaded_file:
             shap_img = Image.open(io.BytesIO(bar_buf.getvalue())).resize((report_width - 2 * padding, shap_image_height))
             report_img.paste(shap_img, (padding, y_offset))
             
-            # Save image to BytesIO buffer
+            # Save report
             img_io = io.BytesIO()
-            report_img.save(img_io, format='JPEG')  # Correct format
+            report_img.save(img_io, format='JPEG')
             img_io.seek(0)
             
-            # Generate QR code linking to report (dummy URL for now)
+            # QR code generation
             qr = qrcode.make("https://your_hosting_url/your_report_placeholder")
             qr_buf = io.BytesIO()
             qr.save(qr_buf, format='PNG')
             qr_buf.seek(0)
             
-            # Final report display
+            # Show in Streamlit
             st.subheader("📝 Summary Report")
             st.image(img_io, caption="Complete Prediction Report")
             st.download_button("⬇️ Download Report", data=img_io, file_name=f"Periodontitis_Report_{selected_id}.jpg", mime="image/jpeg")

@@ -147,8 +147,8 @@ if uploaded_file:
             st.markdown(summary_text, unsafe_allow_html=True)
 
             # --- Larger Text Final Summary Report ---
-            font_title_size = 32
-            font_body_size = 20
+            font_title_size = 42
+            font_body_size = 32
 
             try:
                 font_title = ImageFont.truetype("arial.ttf", font_title_size)
